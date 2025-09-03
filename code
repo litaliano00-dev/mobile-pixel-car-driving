@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GTA 1 Mobile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background-color: #222;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        #game-canvas {
+            display: block;
+            background-color: #555;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            pointer-events: none;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: auto;
+        }
+        
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            margin: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            user-select: none;
+        }
+        
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 5px;
+        }
+        
+        .d-pad-btn {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+        }
+        
+        #up {
+            grid-column: 2;
+            grid-row: 1;
+        }
+        
+        #left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        
+        #right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+        
+        #down {
+            grid-column: 2;
+            grid-row: 3;
+        }
+        
+        #title {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px 12px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+        
+        #mobile-notice {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 80%;
+            z-index: 10;
+        }
+        
+        #close-notice {
+            margin-top: 15px;
+            padding: 8px 16px;
+            background-color: #cc0000;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .control-btn {
+                width: 60px;
+                height: 60px;
+                font-size: 20px;
+            }
+            
+            .d-pad-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .control-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 18px;
+                margin: 5px;
+            }
+            
+            .d-pad-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            
+            #controls {
+                padding: 0 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="title">GTA 1 Mobile</div>
+        
+        <div id="controls">
+            <div class="control-group">
+                <div class="control-btn" id="brake">B</div>
+            </div>
+            <div class="control-group">
+                <div class="d-pad">
+                    <div class="d-pad-btn" id="up">↑</div>
+                    <div class="d-pad-btn" id="left">←</div>
+                    <div class="d-pad-btn" id="right">→</div>
+                    <div class="d-pad-btn" id="down">↓</div>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-btn" id="accelerate">A</div>
+            </div>
+        </div>
+        
+        <div id="mobile-notice">
+            <h2>GTA 1 Style Mobile</h2>
+            <p>Use touch controls to drive the car</p>
+            <p>Accelerate, brake and steer to explore the city</p>
+            <button id="close-notice">Start Playing</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas dimensions based on screen
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Game configuration
+            const game = {
+                width: canvas.width,
+                height: canvas.height,
+                gridSize: 40,
+                buildings: [],
+                roads: [],
+                player: {
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    width: 30,
+                    height: 15,
+                    angle: 0, // Angle in radians
+                    speed: 0,
+                    maxSpeed: 3,
+                    acceleration: 0.1,
+                    deceleration: 0.05,
+                    rotationSpeed: 0.05
+                },
+                controls: {
+                    up: false,
+                    down: false,
+                    left: false,
+                    right: false,
+                    accelerate: false,
+                    brake: false
+                }
+            };
+            
+            // Hide the initial message
+            document.getElementById('close-notice').addEventListener('click', function() {
+                document.getElementById('mobile-notice').style.display = 'none';
+            });
+            
+            // Generate city map
+            function generateCity() {
+                // Create main roads
+                for (let i = 1; i < 5; i++) {
+                    game.roads.push({
+                        x: i * game.gridSize * 4,
+                        y: 0,
+                        width: game.gridSize,
+                        height: game.height,
+                        type: 'vertical'
+                    });
+                    
+                    game.roads.push({
+                        x: 0,
+                        y: i * game.gridSize * 4,
+                        width: game.width,
+                        height: game.gridSize,
+                        type: 'horizontal'
+                    });
+                }
+                
+                // Generate buildings
+                for (let x = 0; x < game.width; x += game.gridSize * 2) {
+                    for (let y = 0; y < game.height; y += game.gridSize * 2) {
+                        // Avoid placing buildings on roads
+                        let onRoad = false;
+                        for (const road of game.roads) {
+                            if (x + game.gridSize * 2 > road.x && 
+                                x < road.x + road.width && 
+                                y + game.gridSize * 2 > road.y && 
+                                y < road.y + road.height) {
+                                onRoad = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!onRoad && Math.random() > 0.3) {
+                            const width = game.gridSize * 2;
+                            const height = game.gridSize * 2;
+                            
+                            game.buildings.push({
+                                x: x,
+                                y: y,
+                                width: width,
+                                height: height,
+                                color: `rgb(${100 + Math.floor(Math.random() * 100)}, ${100 + Math.floor(Math.random() * 100)}, ${100 + Math.floor(Math.random() * 100)})`
+                            });
+                        }
+                    }
+                }
+            }
+            
+            // Draw the map
+            function drawMap() {
+                // Background
+                ctx.fillStyle = '#555';
+                ctx.fillRect(0, 0, game.width, game.height);
+                
+                // Roads
+                ctx.fillStyle = '#333';
+                for (const road of game.roads) {
+                    ctx.fillRect(road.x, road.y, road.width, road.height);
+                    
+                    // Road markings
+                    ctx.fillStyle = '#fff';
+                    if (road.type === 'horizontal') {
+                        for (let x = road.x + 10; x < road.x + road.width; x += 30) {
+                            ctx.fillRect(x, road.y + road.height / 2 - 2, 15, 4);
+                        }
+                    } else {
+                        for (let y = road.y + 10; y < road.y + road.height; y += 30) {
+                            ctx.fillRect(road.x + road.width / 2 - 2, y, 4, 15);
+                        }
+                    }
+                    ctx.fillStyle = '#333';
+                }
+                
+                // Buildings
+                for (const building of game.buildings) {
+                    ctx.fillStyle = building.color;
+                    ctx.fillRect(building.x, building.y, building.width, building.height);
+                    
+                    // Windows
+                    ctx.fillStyle = '#ffff99';
+                    for (let wx = building.x + 5; wx < building.x + building.width; wx += 10) {
+                        for (let wy = building.y + 5; wy < building.y + building.height; wy += 10) {
+                            if (Math.random() > 0.3) {
+                                ctx.fillRect(wx, wy, 5, 5);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Draw the player's car
+            function drawPlayer() {
+                ctx.save();
+                ctx.translate(game.player.x, game.player.y);
+                ctx.rotate(game.player.angle);
+                
+                // Car body
+                ctx.fillStyle = '#cc0000';
+                ctx.fillRect(-game.player.width / 2, -game.player.height / 2, game.player.width, game.player.height);
+                
+                // Car top
+                ctx.fillStyle = '#990000';
+                ctx.fillRect(-game.player.width / 4, -game.player.height / 2, game.player.width / 2, -game.player.height / 2);
+                
+                // Windows
+                ctx.fillStyle = '#99ccff';
+                ctx.fillRect(-game.player.width / 6, -game.player.height / 2 - 2, game.player.width / 3, -game.player.height / 3);
+                
+                // Headlights
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(game.player.width / 2 - 3, -game.player.height / 4, 3, 5);
+                ctx.fillRect(game.player.width / 2 - 3, game.player.height / 4 - 5, 3, 5);
+                
+                // Taillights
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(-game.player.width / 2, -game.player.height / 4, 3, 5);
+                ctx.fillRect(-game.player.width / 2, game.player.height / 4 - 5, 3, 5);
+                
+                ctx.restore();
+            }
+            
+            // Update game state
+            function update() {
+                // Forward/backward movement
+                if (game.controls.accelerate) {
+                    game.player.speed += game.player.acceleration;
+                    if (game.player.speed > game.player.maxSpeed) {
+                        game.player.speed = game.player.maxSpeed;
+                    }
+                } else if (game.controls.brake) {
+                    game.player.speed -= game.player.acceleration;
+                    if (game.player.speed < -game.player.maxSpeed / 2) {
+                        game.player.speed = -game.player.maxSpeed / 2;
+                    }
+                } else {
+                    // Natural deceleration
+                    if (game.player.speed > 0) {
+                        game.player.speed -= game.player.deceleration;
+                        if (game.player.speed < 0) game.player.speed = 0;
+                    } else if (game.player.speed < 0) {
+                        game.player.speed += game.player.deceleration;
+                        if (game.player.speed > 0) game.player.speed = 0;
+                    }
+                }
+                
+                // Rotation
+                if (game.player.speed !== 0) {
+                    if (game.controls.left) {
+                        game.player.angle -= game.player.rotationSpeed * (game.player.speed > 0 ? 1 : -1);
+                    }
+                    if (game.controls.right) {
+                        game.player.angle += game.player.rotationSpeed * (game.player.speed > 0 ? 1 : -1);
+                    }
+                }
+                
+                // Update position based on speed and angle
+                game.player.x += Math.cos(game.player.angle) * game.player.speed;
+                game.player.y += Math.sin(game.player.angle) * game.player.speed;
+                
+                // Keep player within map boundaries
+                if (game.player.x < 0) game.player.x = 0;
+                if (game.player.x > game.width) game.player.x = game.width;
+                if (game.player.y < 0) game.player.y = 0;
+                if (game.player.y > game.height) game.player.y = game.height;
+            }
+            
+            // Main game loop
+            function gameLoop() {
+                update();
+                drawMap();
+                drawPlayer();
+                requestAnimationFrame(gameLoop);
+            }
+            
+            // Setup touch controls
+            function setupControls() {
+                // Accelerator
+                const accelerateBtn = document.getElementById('accelerate');
+                accelerateBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    game.controls.accelerate = true;
+                });
+                
+                accelerateBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    game.controls.accelerate = false;
+                });
+                
+                // Brakes
+                const brakeBtn = document.getElementById('brake');
+                brakeBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    game.controls.brake = true;
+                });
+                
+                brakeBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    game.controls.brake = false;
+                });
+                
+                // Direction
+                const upBtn = document.getElementById('up');
+                upBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    game.controls.up = true;
+                });
+                
+                upBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    game.controls.up = false;
+                });
+                
+                const downBtn = document.getElementById('down');
+                downBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    game.controls.down = true;
+                });
+                
+                downBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    game.controls.down = false;
+                });
+                
+                const leftBtn = document.getElementById('left');
+                leftBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    game.controls.left = true;
+                });
+                
+                leftBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    game.controls.left = false;
+                });
+                
+                const rightBtn = document.getElementById('right');
+                rightBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    game.controls.right = true;
+                });
+                
+                rightBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    game.controls.right = false;
+                });
+            }
+            
+            // Initialize and start the game
+            generateCity();
+            setupControls();
+            gameLoop();
+        });
+    </script>
+</body>
+</html>
